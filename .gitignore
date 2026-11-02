@@ -1,0 +1,44 @@
+# Python: ambientes locais e caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Credenciais e configuracoes locais
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+.databrickscfg
+.databricks/
+.pgpass
+pgpass.conf
+.pg_service.conf
+pg_service.conf
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Exportacoes de dados, backups e registros locais
+/BI/output/
+/output/
+/coverage/
+.coverage
+.coverage.*
+htmlcov/
+*.log
+*.dump
+*.backup
+/backup_*.sql
+/backups/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini

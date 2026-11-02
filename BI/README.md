@@ -2,7 +2,7 @@
 
 ## Entrega
 
-- `load_demo.py` + `demo_history.sql`: **780 visitas B2B**, **520 entregas PEV** e **825 solicitações**, além de 112 usuários, 30 estabelecimentos, 8 PEVs e 5 motoristas. Histórico dos 12 meses anteriores e do mês atual; nenhum fato físico futuro.
+- `carga_nuvem_adicional.sql`: **780 visitas B2B**, **520 entregas PEV** e **825 solicitações**, além de 112 usuários, 30 estabelecimentos, 8 PEVs e 5 motoristas. Histórico dos 12 meses anteriores e do mês atual; nenhum fato físico futuro.
 - `addresses.json`: cinco endereços comerciais reais em São Paulo, consultados em **28/10/2026**, com URLs das fontes oficiais. Os 38 registros de endereço reutilizam esses cinco locais. Não são 500 locais distintos: são mais de 500 operações. Cadastros pessoais, vínculos comerciais e condição de PEV são fictícios. Esses locais não foram identificados como pontos de coleta reais.
 - `pipeline.py`: lê exclusivamente `dm`, calcula os KPIs e publica JSON/CSV para as visualizações. Não altera as fatos, permissões ou o Job de refresh já existente.
 
@@ -10,7 +10,7 @@ Os endereços ficam em `public.addresses`, com rua, número, bairro, cidade, UF 
 
 ## Executar a carga
 
-Requer PostgreSQL com os scripts `01_structure.sql` até `08_materialized_views.sql` já instalados, Python 3.10+ e, em conexão direta, `pip install -r BI/requirements.txt`. No Windows, se `ZoneInfo` não localizar o fuso, instale também `tzdata`.
+A carga SQL requer PostgreSQL com os scripts `01_structure.sql` até `08_materialized_views.sql` já instalados, disponíveis no repositório `DB_Segundo`. Para executar o pipeline Python, use Python 3.10+ e, em conexão direta, `pip install -r BI/requirements.txt`. No Windows, se `ZoneInfo` não localizar o fuso, instale também `tzdata`.
 
 ### Banco em nuvem com dados existentes
 
@@ -22,43 +22,11 @@ As inserções, cálculos e refresh de `dm` ficam em uma transação. Reexecuç�
 
 O SQL foi testado localmente sobre a base já preenchida: passou de 112 para 224 usuários, de 780 para 1.560 coletas e de 520 para 1.040 entregas; todos os registros anteriores das 16 tabelas verificadas permaneceram iguais. Segunda execução manteve essas mesmas quantidades. Não foi executado pelo agente no serviço em nuvem.
 
-Para regenerar o arquivo:
+O SQL disponível é autocontido e deve ser executado diretamente no editor do banco. O gerador Python de carga foi removido; este repositório não oferece mais a geração da carga original para banco vazio.
 
-```powershell
-python BI/load_demo.py --additive --sql-out BI/carga_nuvem_adicional.sql
-```
+O pipeline Python e o Databricks leem os dados existentes e os adicionados pela carga após o refresh.
 
-Também pode ser carregado por conexão direta usando as variáveis libpq descritas abaixo e `--additive`. O pipeline Python e o Databricks passam a ler a soma dos dados existentes e da nova massa, após o refresh. O banco local de demonstração agora contém as duas massas usadas no teste de preservação; os números do primeiro processamento registrados ao fim deste guia referem-se à execução original.
-
-### Banco vazio: carga original
-
-Execute na raiz do repositório. O destino precisa estar **vazio** nas tabelas operacionais e de auditoria; a carga recusa dados existentes e não apaga nada. Use uma conta administrativa de carga e mantenha a API sem gravar nesse destino durante a importação. Os scripts existentes da pasta `PostgreSQL/data_load` são reutilizados para os cadastros; não é necessário executar a carga antiga antes.
-
-Exemplo com PostgreSQL no Docker:
-
-```powershell
-$env:OLIUS_BI_DEMO_TARGET = 'SEU_CONTAINER/SEU_BANCO_VAZIO'
-python BI/load_demo.py --container SEU_CONTAINER --database SEU_BANCO_VAZIO --user postgres
-```
-
-Conexão direta usa as variáveis padrão do libpq (`PGHOST`, `PGPORT`, `PGPASSWORD` ou `PGPASSFILE`, `PGSSLMODE`, `PGSSLROOTCERT`). Configure TLS conforme o seu serviço; nenhuma credencial é gravada no código ou nos relatórios.
-
-```powershell
-$env:PGHOST = 'HOST_DO_BANCO'
-$env:PGPORT = '5432'
-$env:PGSSLMODE = 'verify-full'
-$env:PGSSLROOTCERT = 'C:\certificados\ca.pem'
-$env:OLIUS_BI_DEMO_TARGET = 'HOST_DO_BANCO/SEU_BANCO_VAZIO'
-python BI/load_demo.py --database SEU_BANCO_VAZIO --user USUARIO_DE_CARGA
-```
-
-Para revisar o SQL antes, sem abrir conexão:
-
-```powershell
-python BI/load_demo.py --sql-out coverage/bi/seed.sql
-```
-
-A carga inteira e o refresh de `dm` estão na **mesma transação**. Erro desfaz os cadastros e operações dessa carga. Reexecução após sucesso é recusada porque o banco deixou de estar vazio. Não desativa triggers, CHECKs ou chaves estrangeiras.
+Conexões diretas do pipeline usam as variáveis padrão do libpq (`PGHOST`, `PGPORT`, `PGPASSWORD` ou `PGPASSFILE`, `PGSSLMODE`, `PGSSLROOTCERT`). Para bancos remotos, configure `PGSSLMODE=verify-full` e a CA confiável em `PGSSLROOTCERT`. Não grave credenciais no repositório.
 
 Os ciclos de assinatura e pedidos históricos são inseridos como fixtures acadêmicas com datas coerentes. Não representam pagamentos reais: **essa carga não simula o faturamento**. Os fatos são registrados por `record_collection` e `record_pev_delivery`; resultado, falhas, pontos, recorrência, saldos e auditoria continuam passando pelas rotinas oficiais. Cada ciclo respeita o plano Empresa (500 L / 8 visitas). Para testar pagamentos, use a carga de jornadas já existente em outra base.
 

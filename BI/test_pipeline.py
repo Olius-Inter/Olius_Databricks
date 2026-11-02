@@ -7,7 +7,6 @@ import unittest
 from unittest.mock import patch
 
 from pipeline import calculate, describe, publish, run_once
-from load_demo import build_sql
 
 
 def fixture():
@@ -89,26 +88,6 @@ class PipelineTests(unittest.TestCase):
                 with self.assertRaises(OSError):
                     publish(calculate(fixture(), date(2026, 10, 28)), directory)
             self.assertEqual((Path(directory) / "latest.json").read_bytes(), pointer)
-
-    def test_seed_is_self_contained_and_addresses_real(self):
-        sql = build_sql()
-        self.assertNotIn("\\ir", sql)
-        self.assertNotIn("Rua fictícia", sql)
-        self.assertIn("Avenida Rebouças", sql)
-        self.assertEqual(sql.count("BEGIN ISOLATION LEVEL"), 1)
-        self.assertEqual(sql.count("COMMIT;"), 1)
-
-    def test_additive_seed_is_isolated(self):
-        sql = build_sql(additive=True)
-        self.assertNotIn("Tabela % não vazia", sql)
-        self.assertNotIn("olius-data-load-v1:", sql)
-        self.assertIn("olius-bi-cloud-v1:", sql)
-        self.assertIn("@bi-cloud.olius.example.invalid", sql)
-        self.assertIn("ON CONFLICT (code) DO NOTHING", sql)
-        self.assertIn("já carregada", sql)
-        self.assertNotIn("FROM users WHERE user_type<>'ADMIN';", sql)
-        self.assertNotIn("FROM collection)=780", sql)
-        self.assertNotIn("FROM delivery_pev)=520", sql)
 
 
 if __name__ == "__main__":
